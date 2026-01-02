@@ -1,6 +1,6 @@
 
 export default function Home() {
   return (
-    <div className="">main</div>
+    <main className="min-h-96">main</main>
   );
 }

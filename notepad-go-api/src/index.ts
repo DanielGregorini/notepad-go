@@ -58,7 +58,7 @@ wss.on("connection", (ws) => {
   });
 });
 
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 5000);
 server.listen(port, () => {
   console.log(`HTTP:   http://localhost:${port}/`);
   console.log(`WS:     ws://localhost:${port}/socket`);
