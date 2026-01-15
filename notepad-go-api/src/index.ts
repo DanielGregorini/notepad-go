@@ -1,39 +1,25 @@
-import "dotenv/config";
 import express from "express";
 import http from "http";
-import { WebSocketServer } from "ws";
-//import { PrismaClient } from "@prisma/client";
+import { WebSocketServer, WebSocket } from "ws";
+import cors from "cors";
+
+import type {
+  ClientMessage,
+  RoomClients,
+  RoomContents,
+} from "./model/roomTypes";
 
 const app = express();
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-//const prisma = new PrismaClient();
-
-app.get("/", (req, res) => {
-  res.json({ ok: true, message: "HTTP route working ✅" });
-});
-
-// teste Prisma + Mongo: cria uma nota e devolve
-
-/*
-app.get("/prisma-test", async (req, res) => {
-  try {
-
-    const note = await prisma.note.create({
-      data: { title: "Hello Prisma", content: "MongoDB connected ✅" },
-    });
-    res.json({ ok: true, created: note });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: String(err) });
-  }
-});
-
-*/
-
 const server = http.createServer(app);
-
-// WS preso no path /socket
 const wss = new WebSocketServer({ noServer: true });
+
+// salas: { salaId: Set<WebSocket> }
+const rooms: RoomClients = {};
+// conteúdo por sala
+const roomsContent: RoomContents = {};
 
 server.on("upgrade", (req, socket, head) => {
   const host = req.headers.host ?? "localhost";
@@ -49,18 +35,82 @@ server.on("upgrade", (req, socket, head) => {
   });
 });
 
-wss.on("connection", (ws) => {
-  ws.send(JSON.stringify({ type: "hello", message: "WS connected " }));
+wss.on("connection", (ws: WebSocket) => {
+  let currentRoom: string | null = null;
 
   ws.on("message", (data) => {
-    const text = data.toString();
-    ws.send(JSON.stringify({ type: "echo", received: text }));
+    const msg = JSON.parse(data.toString()) as ClientMessage;
+
+    // Entrar na sala
+    if (msg.type === "join") {
+      const roomId = msg.roomId;
+      currentRoom = roomId;
+
+      if (!rooms[roomId]) rooms[roomId] = new Set();
+      rooms[roomId].add(ws);
+
+      console.log(`Usuário entrou na sala: ${roomId}`);
+      logStatus();
+
+      // manda conteúdo atual se existir
+      if (roomsContent[roomId]) {
+        ws.send(
+          JSON.stringify({
+            type: "receive-change",
+            content: roomsContent[roomId],
+          })
+        );
+      }
+      return;
+    }
+
+    // Texto mudou
+    if (msg.type === "text-change" && currentRoom) {
+      const { content } = msg;
+      roomsContent[currentRoom] = content;
+
+      for (const client of rooms[currentRoom]) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "receive-change",
+              content,
+            })
+          );
+        }
+      }
+    }
+  });
+
+  // Fecha a conexão
+  ws.on("close", () => {
+    if (currentRoom && rooms[currentRoom]) {
+      rooms[currentRoom].delete(ws);
+      console.log(`Usuário saiu da sala: ${currentRoom}`);
+
+      if (rooms[currentRoom].size === 0 && !roomsContent[currentRoom]) {
+        delete rooms[currentRoom];
+        delete roomsContent[currentRoom];
+        console.log(`Sala removida: ${currentRoom}`);
+      }
+
+      logStatus();
+    }
   });
 });
 
-const port = Number(process.env.PORT || 5000);
-server.listen(port, () => {
-  console.log(`HTTP:   http://localhost:${port}/`);
-  console.log(`WS:     ws://localhost:${port}/socket`);
-  //console.log(`Prisma: http://localhost:${port}/prisma-test`);
+function logStatus() {
+  console.log("====== STATUS ======");
+  const roomIds = Object.keys(rooms);
+  console.log("Salas ativas:", roomIds.length);
+  for (const roomId of roomIds) {
+    console.log(`Sala ${roomId}: ${rooms[roomId].size} usuários`);
+    //console.log(`Conteúdo: "${roomsContent[roomId] ?? ""}"`);
+  }
+  console.log("====================");
+}
+
+server.listen(5001, () => {
+  console.log("HTTP: http://localhost:5001");
+  console.log("WS:   ws://localhost:5001/socket");
 });

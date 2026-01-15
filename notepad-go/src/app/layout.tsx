@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import Footer from "@/components/ui/footer";  
+import Header from "@/components/ui/header";
 
 export const metadata: Metadata = {
   title: "Notepad Go",
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <Header />
         {children}
         <Footer />
       </body>

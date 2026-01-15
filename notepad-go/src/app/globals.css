@@ -4,3 +4,10 @@ body {
   font-family: Roboto, Arial, Helvetica, sans-serif;
   background-color: rgb(226, 226, 226);
 }
+
+
+.ProseMirror {
+  min-height: 80vh; 
+  padding: 1rem;
+  outline: none;
+}
