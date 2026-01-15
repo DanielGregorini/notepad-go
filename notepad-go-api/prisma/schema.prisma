@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String   @unique
+  password  String
+
+  slugs     Slug[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Slug {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  slug              String   @unique
+  context           String
+
+  userId            String?  @db.ObjectId
+  user              User?    @relation(fields: [userId], references: [id])
+
+  passwordProtected Boolean  @default(false)
+  password          String?
+
+  lastTimeEdited    DateTime?  
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

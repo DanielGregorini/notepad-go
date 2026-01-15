@@ -1,7 +1,13 @@
-
 import { WebSocket } from "ws";
 
 export type RoomId = string;
+
+export interface ClientMessage {
+  type: "join" | "text-change";
+  roomId: string;
+  content?: string;
+}
+
 
 export interface ClientMessageJoin {
   type: "join";
@@ -14,7 +20,6 @@ export interface ClientMessageTextChange {
   content: string;
 }
 
-export type ClientMessage = ClientMessageJoin | ClientMessageTextChange;
 
 export interface ServerMessageReceiveChange {
   type: "receive-change";
@@ -23,6 +28,5 @@ export interface ServerMessageReceiveChange {
 
 export type ServerMessage = ServerMessageReceiveChange;
 
-export type RoomClients = Record<RoomId, Set<WebSocket>>;
-
-export type RoomContents = Record<RoomId, string>;
+export type RoomClients = Record<string, Set<WebSocket>>;
+export type RoomContents = Record<string, string>;

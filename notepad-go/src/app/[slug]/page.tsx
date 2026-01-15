@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -7,14 +8,15 @@ import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import Link from "@tiptap/extension-link";
 import ToolbarButton from "@/components/ui/toolbarButton";
-import { connect } from "http2";
 
 let ws: WebSocket | null = null;
 
 export default function SlugPage() {
   const params = useParams();
   const fullSlug = params.slug as string | undefined;
+
   const [connected, setConnected] = useState(false);
+  const isRemoteUpdate = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -25,14 +27,17 @@ export default function SlugPage() {
     ],
     content: "",
     immediatelyRender: false,
+
     onUpdate({ editor }) {
+      // 🔒 bloqueia loop de atualização
+      if (isRemoteUpdate.current) return;
       if (!connected || !fullSlug || !ws) return;
-      const html = editor.getHTML();
+
       ws.send(
         JSON.stringify({
           type: "text-change",
           roomId: fullSlug,
-          content: html,
+          content: editor.getHTML(),
         })
       );
     },
@@ -45,7 +50,6 @@ export default function SlugPage() {
     let localWs: WebSocket | null = null;
 
     function connect() {
-      // fecha conexão anterior
       if (localWs) {
         localWs.close();
         localWs = null;
@@ -64,14 +68,16 @@ export default function SlugPage() {
         );
       };
 
-      localWs.onmessage = (event: MessageEvent<string>) => {
+      localWs.onmessage = (event) => {
         const msg = JSON.parse(event.data) as {
           type: string;
           content?: string;
         };
 
         if (msg.type === "receive-change" && msg.content) {
-          editor?.commands.setContent(msg.content, false);
+          isRemoteUpdate.current = true;
+          editor.commands.setContent(msg.content, false);
+          isRemoteUpdate.current = false;
         }
       };
 
@@ -113,39 +119,46 @@ export default function SlugPage() {
           >
             B
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().toggleItalic().run()}
             active={editor?.isActive("italic")}
           >
             I
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().toggleUnderline().run()}
             active={editor?.isActive("underline")}
           >
             U
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().toggleStrike().run()}
             active={editor?.isActive("strike")}
           >
             S
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().setParagraph().run()}
           >
             P
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().setTextAlign("left").run()}
           >
             ⬅
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().setTextAlign("center").run()}
           >
             ⬍
           </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor?.chain().focus().setTextAlign("right").run()}
           >
