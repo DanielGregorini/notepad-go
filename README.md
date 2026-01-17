@@ -25,3 +25,19 @@ mongosh "mongodb://admin:admin@localhost:27017/notepad?authSource=admin"
 show collections
 
 db.slugs.find().pretty()
+
+
+### notepad-go .env
+
+NEXT_PUBLIC_API_URL=http://localhost:5001
+
+
+### notepad-go-apu .env
+
+DATABASE_URL=mongodb://admin:admin@localhost:27017/notepad?authSource=admin
+
+TIME_SYNC_ROOM_S=30
+
+TIME_REMOVE_ROOM_D=7
+
+JWT_SECRET=d2xSBjsdmk20La937aj7SGnaf
