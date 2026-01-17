@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
-import Footer from "@/components/ui/footer";  
-import Header from "@/components/ui/header";
+import ClientLayout from "@/components/ClientLayout";
 
 export const metadata: Metadata = {
   title: "Notepad Go",
@@ -11,15 +9,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body>
-        <Header />
-        {children}
-        <Footer />
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

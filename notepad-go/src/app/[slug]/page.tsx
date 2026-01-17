@@ -1,175 +1,194 @@
 "use client";
-
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import Link from "@tiptap/extension-link";
+
+import { useAuth } from "@/context/AuthContext";
+
+import DefinePasswordButton from "@/components/DefinePasswordButton";
+import DefinePasswordModal from "@/components/pasawordModal";
+import EnterSlugPasswordModal from "@/components/EnterSlugPasswordModal";
 import ToolbarButton from "@/components/ui/toolbarButton";
+import ButtonDeletePassword from "@/components/ui/buttonDeletePassword";
 
 let ws: WebSocket | null = null;
 
 export default function SlugPage() {
   const params = useParams();
-  const fullSlug = params.slug as string | undefined;
+  const slug = params.slug as string;
+
+  const { getSlugToken, hasSlugToken, isAuthenticated } = useAuth();
 
   const [connected, setConnected] = useState(false);
+  const [showDefinePasswordModal, setShowDefinePasswordModal] = useState(false);
+  const [showEnterPasswordModal, setShowEnterPasswordModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
+
   const isRemoteUpdate = useRef(false);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({ openOnClick: false }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
+    extensions: [StarterKit],
     content: "",
     immediatelyRender: false,
-
     onUpdate({ editor }) {
-      // 🔒 bloqueia loop de atualização
       if (isRemoteUpdate.current) return;
-      if (!connected || !fullSlug || !ws) return;
+      if (!ws) return;
 
       ws.send(
         JSON.stringify({
           type: "text-change",
-          roomId: fullSlug,
+          roomId: slug,
           content: editor.getHTML(),
-        })
+        }),
       );
     },
   });
 
   useEffect(() => {
-    if (!fullSlug || !editor) return;
+    fetch(`http://localhost:5001/slug/${slug}/has-password`)
+      .then((res) => res.json())
+      .then((data) => setHasPassword(data.hasPassword))
+      .catch(() => setHasPassword(false));
+  }, [slug]);
 
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    let localWs: WebSocket | null = null;
+  useEffect(() => {
+    if (!editor) return;
 
-    function connect() {
-      if (localWs) {
-        localWs.close();
-        localWs = null;
-      }
+    const slugToken = getSlugToken(slug);
 
-      localWs = new WebSocket("ws://localhost:5001/socket");
-      ws = localWs;
+    ws = new WebSocket("ws://localhost:5001/socket");
 
-      localWs.onopen = () => {
+    ws.onopen = () => {
+      ws?.send(
+        JSON.stringify({
+          type: "join",
+          roomId: slug,
+          token: slugToken ?? undefined,
+        }),
+      );
+    };
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === "receive-change") {
         setConnected(true);
-        localWs?.send(
-          JSON.stringify({
-            type: "join",
-            roomId: fullSlug,
-          })
-        );
-      };
+        isRemoteUpdate.current = true;
 
-      localWs.onmessage = (event) => {
-        const msg = JSON.parse(event.data) as {
-          type: string;
-          content?: string;
-        };
+        editor.commands.setContent(msg.content, {
+          emitUpdate: false,
+        });
 
-        if (msg.type === "receive-change" && msg.content) {
-          isRemoteUpdate.current = true;
-          editor.commands.setContent(msg.content, false);
-          isRemoteUpdate.current = false;
-        }
-      };
+        isRemoteUpdate.current = false;
+      }
+    };
 
-      localWs.onclose = () => {
-        setConnected(false);
-        retryTimeout = setTimeout(connect, 1000);
-      };
-
-      localWs.onerror = () => {
-        localWs?.close();
-      };
-    }
-
-    connect();
+    ws.onclose = () => {
+      setConnected(false);
+      if (!hasSlugToken(slug)) {
+        setShowEnterPasswordModal(true);
+      }
+    };
 
     return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
-      if (localWs) {
-        localWs.onclose = null;
-        localWs.close();
-      }
+      ws?.close();
       ws = null;
     };
-  }, [fullSlug, editor]);
+  }, [editor, slug, getSlugToken, hasSlugToken]);
 
-  if (!fullSlug) return <p>Carregando sala...</p>;
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Não foi possível copiar o link");
+    }
+  }
+
+  if (!editor) return null;
 
   return (
     <main className="min-h-screen bg-gray-100 flex justify-center p-6">
       <div className="bg-white shadow-lg rounded-xl w-full flex flex-col">
-        <div className="text-xs text-gray-500 p-3 border-b">
-          Sala: {fullSlug} {connected ? "🟢" : "🔴"}
+        {/* HEADER */}
+        <div className="p-3 border-b flex justify-between items-center">
+          <span className="text-sm text-gray-500">
+            Sala: {slug} {connected ? "🟢" : "🔴"}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyLink}
+              className="px-3 py-1 text-sm rounded border bg-white hover:bg-gray-100"
+              type="button"
+            >
+              {copied ? "Link copiado!" : "Copiar link"}
+            </button>
+
+            {isAuthenticated && hasPassword && (
+              <ButtonDeletePassword slug={slug} />
+            )}
+
+            {isAuthenticated && (
+              <DefinePasswordButton
+                onClick={() => setShowDefinePasswordModal(true)}
+              />
+            )}
+          </div>
         </div>
 
-        <div className="border-b p-3 flex flex-wrap gap-2 bg-gray-50">
+        <div className="flex flex-wrap gap-1 border-b p-2 bg-gray-50">
           <ToolbarButton
-            onClick={() => editor?.chain().focus().toggleBold().run()}
-            active={editor?.isActive("bold")}
+            active={editor.isActive("bold")}
+            onClick={() => editor.chain().focus().toggleBold().run()}
           >
-            B
+            <strong>B</strong>
           </ToolbarButton>
 
           <ToolbarButton
-            onClick={() => editor?.chain().focus().toggleItalic().run()}
-            active={editor?.isActive("italic")}
+            active={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
           >
-            I
+            <em>I</em>
           </ToolbarButton>
 
           <ToolbarButton
-            onClick={() => editor?.chain().focus().toggleUnderline().run()}
-            active={editor?.isActive("underline")}
+            active={editor.isActive("strike")}
+            onClick={() => editor.chain().focus().toggleStrike().run()}
           >
-            U
+            <s>S</s>
           </ToolbarButton>
 
           <ToolbarButton
-            onClick={() => editor?.chain().focus().toggleStrike().run()}
-            active={editor?.isActive("strike")}
+            active={editor.isActive("code")}
+            onClick={() => editor.chain().focus().toggleCode().run()}
           >
-            S
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor?.chain().focus().setParagraph().run()}
-          >
-            P
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor?.chain().focus().setTextAlign("left").run()}
-          >
-            ⬅
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor?.chain().focus().setTextAlign("center").run()}
-          >
-            ⬍
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor?.chain().focus().setTextAlign("right").run()}
-          >
-            ➡
+            {"</>"}
           </ToolbarButton>
         </div>
 
-        <div className="flex-1 p-5 prose max-w-none overflow-auto">
+        <div className="flex-1 p-4 overflow-auto">
           <EditorContent editor={editor} />
         </div>
       </div>
+
+      {showEnterPasswordModal && (
+        <EnterSlugPasswordModal
+          slug={slug}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
+
+      {showDefinePasswordModal && (
+        <DefinePasswordModal
+          slug={slug}
+          onClose={() => window.location.reload()}
+        />
+      )}
     </main>
   );
 }

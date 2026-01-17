@@ -5,7 +5,10 @@ export default class RoomSyncJob {
   private interval: NodeJS.Timeout | null = null;
   private repo!: SlugRepository;
 
-  constructor(private roomsContent: Record<string, string>, private timeout: number) {}
+  constructor(
+    private roomsContent: Record<string, string>,
+    private timeout: number,
+  ) {}
 
   async start() {
     const db = await connectMongo();
@@ -14,8 +17,6 @@ export default class RoomSyncJob {
     this.interval = setInterval(() => {
       this.run();
     }, this.timeout);
-
-    console.log("\nRoomSyncJob has been started");
   }
 
   stop() {
@@ -23,11 +24,22 @@ export default class RoomSyncJob {
   }
 
   private async run() {
+    console.log("\nRoomSyncJob has been started");
+    
     const slugs = Object.keys(this.roomsContent);
 
     for (const slug of slugs) {
+      const exists = await this.repo.exists(slug);
       const content = this.roomsContent[slug];
-      await this.repo.updateContext(slug, content);
+
+      if (exists) {
+        await this.repo.updateContext(slug, content);
+      } else {
+        await this.repo.create({
+          slug: slug,
+          context: content,
+        });
+      }
     }
 
     console.log(`\n${slugs.length} rooms saved`);

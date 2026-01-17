@@ -17,3 +17,11 @@ docker run -d \
 
 npx prisma generate
 npx prisma db push
+
+
+docker exec -it notepad-mongo mongosh
+mongosh "mongodb://admin:admin@localhost:27017/notepad?authSource=admin"
+
+show collections
+
+db.slugs.find().pretty()

@@ -6,6 +6,7 @@ export interface ClientMessage {
   type: "join" | "text-change";
   roomId: string;
   content?: string;
+  token?: string;
 }
 
 
@@ -18,6 +19,7 @@ export interface ClientMessageTextChange {
   type: "text-change";
   roomId: RoomId;
   content: string;
+  token: string;
 }
 
 

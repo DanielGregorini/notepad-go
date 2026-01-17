@@ -2,10 +2,19 @@ import express from "express";
 import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import cors from "cors";
+import "dotenv/config";
 
 import { connectMongo } from "./db/monge";
-import SlugRepository from "./repository/slug";
 import RoomSyncJob from "./jobs/roomSyncJob";
+
+import SlugRepository from "./repository/slug";
+import UserRepository from "./repository/user";
+
+import SlugJwt from "./auth/slugService";
+import UserJwt from "./auth/userService";
+import SlugRoutes from "./routes/slug";
+
+import UserRoutes from "./routes/user";
 
 import type {
   ClientMessage,
@@ -13,140 +22,185 @@ import type {
   RoomContents,
 } from "./model/roomTypes";
 
-// -------------------- Mongo --------------------
-let slugRepository: SlugRepository;
+const TIME_SYNC_ROOM_S = process.env.TIME_SYNC_ROOM_S ? parseInt(process.env.TIME_SYNC_ROOM_S) * 1000 : 30000;
 
-async function initDB() {
+async function bootstrap() {
+  // -------------------- DB --------------------
   const db = await connectMongo();
-  slugRepository = new SlugRepository(db);
-}
-initDB();
+  const slugRepository = new SlugRepository(db);
+  const userRepository = new UserRepository(db);
 
-// -------------------- App --------------------
-const app = express();
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+  // -------------------- APP --------------------
+  const app = express();
+  app.use(cors({ origin: "*" }));
+  app.use(express.json());
 
-const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true });
+  // -------------------- HTTP + WS --------------------
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ noServer: true });
 
-// -------------------- Estado em memória --------------------
-const rooms: RoomClients = {};
-const roomsContent: RoomContents = {};
+  // -------------------- MEMÓRIA --------------------
+  const rooms: RoomClients = {};
+  const roomsContent: RoomContents = {};
 
-// -------------------- Upgrade WS --------------------
-server.on("upgrade", (req, socket, head) => {
-  const host = req.headers.host ?? "localhost";
-  const url = new URL(req.url ?? "/", `http://${host}`);
+  // -------------------- UPGRADE --------------------
+  server.on("upgrade", (req, socket, head) => {
+    const host = req.headers.host ?? "localhost";
+    const url = new URL(req.url ?? "/", `http://${host}`);
 
-  if (url.pathname !== "/socket") {
-    socket.destroy();
-    return;
-  }
-
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit("connection", ws);
-  });
-});
-
-// -------------------- WS --------------------
-wss.on("connection", (ws: WebSocket) => {
-  let currentRoom: string | null = null;
-
-
-  ws.on("message", async (data) => {
-    const msg = JSON.parse(data.toString()) as ClientMessage;
-
-    // -------- JOIN --------
-    if (msg.type === "join") {
-      const slug = msg.roomId;
-      currentRoom = slug;
-
-      if (!rooms[slug]) {
-        const saved = await slugRepository.findBySlug(slug);
-        console.log("Saved slug:", saved);
-        roomsContent[slug] = saved?.context ?? "";
-        rooms[slug] = new Set();
-      }
-
-      rooms[slug].add(ws);
-
-      ws.send(
-        JSON.stringify({
-          type: "receive-change",
-          content: roomsContent[slug],
-        })
-      );
-
-      logStatus();
+    if (url.pathname !== "/socket") {
+      socket.destroy();
       return;
     }
 
-    // -------- TEXT CHANGE --------
-    if (msg.type === "text-change" && currentRoom && currentRoom != undefined && msg.content !== undefined) {
-  
-      roomsContent[currentRoom] = msg.content;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws);
+    });
+  });
 
-      for (const client of rooms[currentRoom]) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "receive-change",
-              content: msg.content,
-            })
-          );
+  // -------------------- WS --------------------
+  wss.on("connection", (ws: WebSocket) => {
+    let currentRoom: string | null = null;
+    let canEdit = false;
+
+    ws.on("message", async (data) => {
+      let msg: ClientMessage;
+
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        ws.close();
+        return;
+      }
+
+      // ---------------- JOIN ----------------
+      if (msg.type === "join") {
+        const { roomId, token } = msg;
+
+        if (!roomId) {
+          ws.close();
+          return;
+        }
+
+        const savedSlug = await slugRepository.findBySlug(roomId);
+
+        const passwordProtected = savedSlug?.passwordProtected === true;
+
+        // slug tem senha → exige token
+        if (passwordProtected) {
+          if (!token) {
+            ws.close();
+            return;
+          }
+
+          const slugAllowed = SlugJwt.canEdit(token, roomId);
+          //const userAllowed = UserJwt.canEdit(token);
+
+          if (!slugAllowed) {
+            ws.close();
+            return;
+          }
+
+          canEdit = true;
+        } else {
+          canEdit = true;
+        }
+
+        currentRoom = roomId;
+
+        if (!rooms[roomId]) {
+          roomsContent[roomId] = savedSlug?.context ?? "";
+          rooms[roomId] = new Set();
+        }
+
+        rooms[roomId].add(ws);
+
+        ws.send(
+          JSON.stringify({
+            type: "receive-change",
+            content: roomsContent[roomId],
+          }),
+        );
+
+        logStatus();
+        return;
+      }
+
+      // --------- BLOQUEIO ---------
+      if (!canEdit || !currentRoom) {
+        return;
+      }
+
+      // ---------------- TEXT CHANGE ----------------
+      if (msg.type === "text-change" && msg.content !== undefined) {
+        roomsContent[currentRoom] = msg.content;
+
+        for (const client of rooms[currentRoom]) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "receive-change",
+                content: msg.content,
+              }),
+            );
+          }
         }
       }
-    }
-  });
+    });
 
-  // -------- CLOSE --------
-  ws.on("close", async () => {
-    if (!currentRoom) return;
+    // ---------------- CLOSE ----------------
+    ws.on("close", async () => {
+      if (!currentRoom) return;
 
-    rooms[currentRoom]?.delete(ws);
+      rooms[currentRoom]?.delete(ws);
 
-    // última conexão saiu da sala
-    if (rooms[currentRoom]?.size === 0) {
-      const content = roomsContent[currentRoom];
+      if (rooms[currentRoom]?.size === 0) {
+        const content = roomsContent[currentRoom];
+        const exists = await slugRepository.exists(currentRoom);
 
-      // verifica se já existe no banco
-      const exists = await slugRepository.exists(currentRoom);
+        if (exists) {
+          await slugRepository.updateContext(currentRoom, content);
+        } else {
+          await slugRepository.create({
+            slug: currentRoom,
+            context: content,
+          });
+        }
 
-      if (exists) {
-        // atualiza
-        await slugRepository.updateContext(currentRoom, content);
-      } else {
-        // cria
-        await slugRepository.create({
-          slug: currentRoom,
-          context: content,
-        });
+        delete rooms[currentRoom];
+        delete roomsContent[currentRoom];
       }
 
-      delete rooms[currentRoom];
-      delete roomsContent[currentRoom];
-    }
-
-    logStatus();
+      logStatus();
+    });
   });
-});
 
-// -------------------- Logs --------------------
-function logStatus() {
-  console.log("\n====== STATUS ======");
-  for (const slug of Object.keys(rooms)) {
-    console.log(`Sala ${slug}: ${rooms[slug].size} usuários`);
+  // -------------------- LOG --------------------
+  function logStatus() {
+    console.log("\n====== STATUS ======");
+    for (const slug of Object.keys(rooms)) {
+      console.log(`Sala ${slug}: ${rooms[slug].size} usuários`);
+    }
+    console.log("====================");
   }
-  console.log("====================");
+
+  // -------------------- JOB --------------------
+  const roomSyncJob = new RoomSyncJob(roomsContent, TIME_SYNC_ROOM_S);
+  roomSyncJob.start();
+
+  app.use("/slug", SlugRoutes(slugRepository));
+
+  app.use("/user", UserRoutes(userRepository, slugRepository));
+
+  // -------------------- SERVER --------------------
+  server.listen(5001, () => {
+    console.log("HTTP: http://localhost:5001");
+    console.log("WS:   ws://localhost:5001/socket");
+    console.log("\n");
+  });
 }
 
-// -------------------- Job --------------------
-const roomSyncJob = new RoomSyncJob(roomsContent, 30 * 1000);
-roomSyncJob.start();
-
-// -------------------- Server --------------------
-server.listen(5001, () => {
-  console.log("HTTP: http://localhost:5001");
-  console.log("WS:   ws://localhost:5001/socket");
+bootstrap().catch((err) => {
+  console.error("Erro ao iniciar:", err);
+  process.exit(1);
 });

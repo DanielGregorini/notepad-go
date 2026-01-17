@@ -1,14 +1,5 @@
 import { Collection, Db } from "mongodb";
-
-export interface Slug {
-  slug: string;
-  context: string;
-  passwordProtected: boolean;
-  password: string | null;
-  lastTimeEdited: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import Slug from "../model/slug";
 
 export default class SlugRepository {
   private collection: Collection<Slug>;
@@ -49,24 +40,45 @@ export default class SlugRepository {
           lastTimeEdited: new Date(),
           updatedAt: new Date(),
         },
-      }
+      },
     );
   }
 
   async updatePassword(
     slug: string,
     passwordProtected: boolean,
-    password?: string | null
+    password?: string | null,
   ): Promise<void> {
+
+
+
     await this.collection.updateOne(
       { slug },
       {
         $set: {
           passwordProtected,
-          password: passwordProtected ? password ?? null : null,
+          password: passwordProtected ? (password ?? null) : null,
+          updatedAt: new Date(),
+  
+        },
+      },
+    );
+  }
+
+  async removePassword(
+    slug: string,
+  ): Promise<void> {
+
+    await this.collection.updateOne(
+      { slug },
+      {
+        $set: {
+          passwordProtected: false,
+          password: null,
+          userId: undefined,
           updatedAt: new Date(),
         },
-      }
+      },
     );
   }
 
@@ -77,5 +89,17 @@ export default class SlugRepository {
   async exists(slug: string): Promise<boolean> {
     const count = await this.collection.countDocuments({ slug });
     return count > 0;
+  }
+
+  async setOwner(slug: string, userId: string): Promise<void> {
+    await this.collection.updateOne(
+      { slug },
+      {
+        $set: {
+          userId,
+          updatedAt: new Date(),
+        },
+      },
+    );
   }
 }
