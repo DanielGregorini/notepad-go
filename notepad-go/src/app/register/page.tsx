@@ -1,41 +1,85 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+type Status = "success" | "error" | null;
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { login } = useAuth();
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
+
     setLoading(true);
+    setMessage(null);
+    setStatus(null);
 
     const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email"));
+    const password = String(formData.get("password"));
 
     const payload = {
       id: crypto.randomUUID(),
       name: formData.get("name"),
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email,
+      password,
     };
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // 1️⃣ cria conta
+      const registerRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/user`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
 
-      if (!res.ok) {
-        throw new Error("Erro ao criar conta");
+      if (!registerRes.ok) {
+        const err = await registerRes.json();
+        setStatus("error");
+        setMessage(err.error || "Erro ao criar conta");
+        return;
       }
 
-      setSuccess(true);
-      e.currentTarget.reset();
-    } catch (err) {
-      setError("Não foi possível criar a conta");
+      // 2️⃣ FAZ LOGIN (IGUAL AO LoginPage)
+      const loginRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/user/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        },
+      );
+
+      const loginData = await loginRes.json();
+
+      if (!loginRes.ok) {
+        setStatus("error");
+        setMessage(loginData.error || "Erro ao autenticar após cadastro");
+        return;
+      }
+
+      // 3️⃣ usa o MESMO login do LoginPage
+      login(loginData.token, loginData.user);
+
+      setStatus("success");
+      setMessage("Conta criada e login efetuado com sucesso");
+
+      setTimeout(() => {
+        router.push("/");
+      }, 800);
+    } catch {
+      setStatus("error");
+      setMessage("Erro de conexão com o servidor");
     } finally {
       setLoading(false);
     }
@@ -52,68 +96,49 @@ export default function RegisterPage() {
           Crie sua conta para salvar e compartilhar seus textos
         </p>
 
-        {success && (
-          <div className="mb-4 rounded-lg bg-green-100 text-green-700 px-4 py-2 text-sm">
-            Conta criada com sucesso 🎉
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-100 text-red-700 px-4 py-2 text-sm">
-            {error}
+        {message && status && (
+          <div
+            className={`mb-4 rounded-lg px-4 py-2 text-sm text-center ${
+              status === "error"
+                ? "bg-red-100 text-red-700"
+                : "bg-green-100 text-green-700"
+            }`}
+          >
+            {message}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome
-            </label>
-            <input
-              name="name"
-              required
-              placeholder="Seu nome"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <input
+            name="name"
+            required
+            placeholder="Nome"
+            className="w-full rounded-lg border px-4 py-2"
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder="seu@email.com"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="Email"
+            className="w-full rounded-lg border px-4 py-2"
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Senha
-            </label>
-            <input
-              name="password"
-              type="password"
-              required
-              placeholder="••••••••"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <input
+            name="password"
+            type="password"
+            required
+            placeholder="Senha"
+            className="w-full rounded-lg border px-4 py-2"
+          />
 
           <button
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 transition disabled:opacity-50"
+            className="w-full rounded-lg bg-indigo-600 text-white py-2 disabled:opacity-50"
           >
             {loading ? "Criando..." : "Criar conta"}
           </button>
         </form>
-
-        <p className="text-xs text-gray-400 text-center mt-6">
-          Ao criar uma conta você concorda com nossos termos.
-        </p>
       </div>
     </main>
   );

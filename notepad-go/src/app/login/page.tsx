@@ -4,15 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
+type Status = "success" | "error" | null;
+
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth(); // ✅ USA O CONTEXT
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState(false);
+  const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
@@ -20,34 +22,37 @@ export default function LoginPage() {
 
     setLoading(true);
     setMessage(null);
-    setError(false);
+    setStatus(null);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/user/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
         },
-        body: JSON.stringify({ email, password }),
-      });
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(true);
+        setStatus("error");
         setMessage(data.error || "Login failed");
-        setLoading(false);
         return;
       }
 
-      // ✅ SETA NO CONTEXT (E NO LOCALSTORAGE INTERNAMENTE)
-      login(data.token, data.user);
 
+      login(data.token, data.user);
+      setStatus("success");
       setMessage("Login successful");
 
-      router.push("/"); // ✅ Header atualiza automaticamente
+      // pequeno delay só para feedback visual
+      setTimeout(() => {
+        router.push("/");
+      }, 800);
     } catch {
-      setError(true);
+      setStatus("error");
       setMessage("Server connection error");
     } finally {
       setLoading(false);
@@ -60,10 +65,10 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="w-full max-w-sm bg-white shadow-md rounded p-6 space-y-4"
       >
-        {message && (
+        {message && status && (
           <div
             className={`p-2 text-sm rounded text-center ${
-              error
+              status === "error"
                 ? "bg-red-100 text-red-700"
                 : "bg-green-100 text-green-700"
             }`}

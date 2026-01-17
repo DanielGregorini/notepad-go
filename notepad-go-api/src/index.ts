@@ -34,8 +34,6 @@ const TIME_REMOVE_ROOM_D = process.env.TIME_REMOVE_ROOM_D
   ? parseInt(process.env.TIME_REMOVE_ROOM_D)
   : 7;
 
-
-
 async function bootstrap() {
   // -------------------- DB --------------------
   const db = await connectMongo();
@@ -145,6 +143,13 @@ async function bootstrap() {
 
       // ---------------- TEXT CHANGE ----------------
       if (msg.type === "text-change" && msg.content !== undefined) {
+        if (!rooms[currentRoom]) {
+          console.warn(
+            `Tentativa de update em sala inexistente: ${currentRoom}`,
+          );
+          return;
+        }
+
         roomsContent[currentRoom] = msg.content;
 
         for (const client of rooms[currentRoom]) {
@@ -211,19 +216,18 @@ async function bootstrap() {
 
   app.use("/user", UserRoutes(userRepository, slugRepository));
 
-  //docs 
+  //docs
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-    // -------------------- SERVER --------------------
-    server.listen(5001, () => {
-      console.log("HTTP: http://localhost:5001");
-      console.log("WS:   ws://localhost:5001/socket");
-      console.log("\n");
-      console.log("Docs: http://localhost:5001/docs/");
-      //http://localhost:5001/docs/
-      console.log("\n");
-    });
-
+  // -------------------- SERVER --------------------
+  server.listen(5001, () => {
+    console.log("HTTP: http://localhost:5001");
+    console.log("WS:   ws://localhost:5001/socket");
+    console.log("\n");
+    console.log("Docs: http://localhost:5001/docs/");
+    //http://localhost:5001/docs/
+    console.log("\n");
+  });
 }
 
 bootstrap().catch((err) => {

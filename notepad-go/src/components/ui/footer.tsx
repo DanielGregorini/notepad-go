@@ -14,7 +14,7 @@ function Footer() {
         {/* Links */}
         <div className="flex items-center gap-6 text-sm">
           <Link
-            href="https://github.com"
+            href="https://https://github.com/DanielGregorini/notepad-go.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-500 hover:text-gray-900 transition"
@@ -23,14 +23,14 @@ function Footer() {
           </Link>
 
           <Link
-            href="/privacy"
+            href="/"
             className="text-gray-500 hover:text-gray-900 transition"
           >
             Privacy
           </Link>
 
           <Link
-            href="/terms"
+            href="/"
             className="text-gray-500 hover:text-gray-900 transition"
           >
             Terms
