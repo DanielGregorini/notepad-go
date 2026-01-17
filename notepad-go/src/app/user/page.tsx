@@ -45,7 +45,7 @@ export default function UserPage() {
   useEffect(() => {
     if (!user) return;
 
-    fetch(`http://localhost:5001/user/${user.id}/slugs`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/${user.id}/slugs`)
       .then((res) => res.json())
       .then(setSlugs)
       .catch(() => setSlugs([]));
@@ -67,7 +67,7 @@ export default function UserPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:5001/user/${user!.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/user/${user!.id}`,
         {
           method: "PUT",
           headers: {
@@ -122,7 +122,7 @@ export default function UserPage() {
 
         {/* EDITAR PERFIL */}
         <section>
-          <h2 className="font-semibold mb-4">Editar perfil</h2>
+          <h2 className="font-semibold mb-4">Edit profile</h2>
 
           <div className="space-y-3 max-w-md">
             <input
@@ -165,25 +165,25 @@ export default function UserPage() {
               disabled={loading}
               className="bg-black text-white px-4 py-2 rounded text-sm"
             >
-              {loading ? "Salvando..." : "Salvar alterações"}
+              {loading ? "Saving..." : "Save changes"}
             </button>
 
             <button
               onClick={logout}
               className="text-sm text-gray-500 underline block"
             >
-              Sair
+              Logout
             </button>
           </div>
         </section>
 
         {/* SALAS */}
         <section>
-          <h2 className="font-semibold mb-3">Minhas salas</h2>
+          <h2 className="font-semibold mb-3">My rooms</h2>
 
           {slugs.length === 0 && (
             <p className="text-sm text-gray-500">
-              Você ainda não possui salas.
+              You don&apos;t have any rooms.
             </p>
           )}
 

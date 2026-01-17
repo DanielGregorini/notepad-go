@@ -13,7 +13,7 @@ export default function DefinePasswordButton({
       onClick={onClick}
       className="px-3 py-1 rounded bg-black text-white text-sm hover:bg-gray-800"
     >
-      Definir senha
+      Define password
     </button>
   );
 }

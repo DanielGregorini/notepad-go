@@ -11,8 +11,38 @@ export default function userRoutes(
   const router = Router();
 
   /**
-   * Criar usuário
-   * POST /user
+   * @swagger
+   * /user:
+   *   post:
+   *     summary: Create a new user
+   *     tags: [User]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - id
+   *               - name
+   *               - email
+   *               - password
+   *             properties:
+   *               id:
+   *                 type: string
+   *               name:
+   *                 type: string
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       201:
+   *         description: User created successfully
+   *       400:
+   *         description: Invalid data
+   *       500:
+   *         description: Server error
    */
   router.post("/", async (req, res) => {
     try {
@@ -29,9 +59,40 @@ export default function userRoutes(
     }
   });
 
-  /**
-   * Login do usuário
-   * POST /user/login
+    /**
+   * @swagger
+   * /user/login:
+   *   post:
+   *     summary: Login user
+   *     tags: [User]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - email
+   *               - password
+   *             properties:
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token:
+   *                   type: string
+   *                 user:
+   *                   type: object
+   *       401:
+   *         description: Invalid credentials
    */
   router.post("/login", async (req, res) => {
     try {
@@ -69,9 +130,24 @@ export default function userRoutes(
     }
   });
 
+ 
   /**
-   * Buscar usuário
-   * GET /user/:id
+   * @swagger
+   * /user/{id}:
+   *   get:
+   *     summary: Get user by ID
+   *     tags: [User]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User found
+   *       404:
+   *         description: User not found
    */
   router.get("/:id", async (req, res) => {
     try {
@@ -91,9 +167,21 @@ export default function userRoutes(
     }
   });
 
-  /**
-   * Listar slugs do usuário
-   * GET /user/:id/slugs
+    /**
+   * @swagger
+   * /user/{id}/slugs:
+   *   get:
+   *     summary: List slugs owned by user
+   *     tags: [User]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of slugs
    */
   router.get("/:id/slugs", async (req, res) => {
     try {
@@ -115,6 +203,41 @@ export default function userRoutes(
   /**
    * Editar usuário
    * PUT /user/:id
+   */
+
+    /**
+   * @swagger
+   * /user/{id}:
+   *   put:
+   *     summary: Update user profile
+   *     tags: [User]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name:
+   *                 type: string
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: User updated successfully
+   *       401:
+   *         description: Unauthorized
+   *       403:
+   *         description: Forbidden
    */
   router.put("/:id", async (req, res) => {
     try {

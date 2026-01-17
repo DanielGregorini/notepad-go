@@ -35,8 +35,8 @@ export default function Home() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-lg text-gray-600 max-w-xl mb-10"
         >
-          Um editor de texto colaborativo em tempo real.
-          Crie uma sala, compartilhe o link e escreva junto — simples, rápido e seguro.
+          A real-time collaborative text editor.  
+          Create a room, share the link, and write together — simple, fast, and secure.
         </motion.p>
 
         <motion.div
@@ -49,27 +49,27 @@ export default function Home() {
             href="/register"
             className="px-6 py-3 rounded-lg bg-black text-white font-medium hover:bg-gray-800 transition"
           >
-            Criar conta
+            Create account
           </Link>
 
           <Link
             href="/login"
             className="px-6 py-3 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition"
           >
-            Entrar
+            Sign in
           </Link>
 
-          {/* 🔥 SALA ALEATÓRIA */}
+          {/* 🔥 RANDOM ROOM */}
           <button
             onClick={goToRandomRoom}
             className="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
           >
-            Sala aleatória
+            Random room
           </button>
         </motion.div>
       </section>
 
-      {/* COMO FUNCIONA */}
+      {/* HOW IT WORKS */}
       <section className="max-w-6xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-3 gap-8">
         {steps.map((step, i) => (
           <motion.div
@@ -87,7 +87,7 @@ export default function Home() {
         ))}
       </section>
 
-      {/* CTA FINAL */}
+      {/* FINAL CTA */}
       <section className="bg-black text-white py-20 text-center px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -96,7 +96,7 @@ export default function Home() {
           transition={{ duration: 0.5 }}
           className="text-3xl font-bold mb-4"
         >
-          Comece agora
+          Get started now
         </motion.h2>
 
         <motion.p
@@ -106,7 +106,7 @@ export default function Home() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="text-gray-300 mb-8"
         >
-          Não precisa instalar nada. Só abrir o link e escrever.
+          No installation required. Just open the link and start writing.
         </motion.p>
 
         <motion.div
@@ -119,7 +119,7 @@ export default function Home() {
             onClick={goToRandomRoom}
             className="inline-block px-8 py-3 rounded-lg bg-white text-black font-semibold hover:bg-gray-200 transition"
           >
-            Entrar em uma sala aleatória
+            Join a random room
           </button>
         </motion.div>
       </section>
@@ -130,17 +130,17 @@ export default function Home() {
 const steps = [
   {
     icon: "📝",
-    title: "Crie uma sala",
-    description: "Cada URL é uma sala única de edição.",
+    title: "Create a room",
+    description: "Each URL is a unique editing room.",
   },
   {
     icon: "🔗",
-    title: "Compartilhe o link",
-    description: "Envie o link e escreva junto em tempo real.",
+    title: "Share the link",
+    description: "Send the link and collaborate in real time.",
   },
   {
     icon: "🔒",
-    title: "Proteja com senha",
-    description: "Controle quem pode editar o conteúdo.",
+    title: "Protect with a password",
+    description: "Control who can edit the content.",
   },
 ];

@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -11,8 +12,11 @@ import DefinePasswordModal from "@/components/pasawordModal";
 import EnterSlugPasswordModal from "@/components/EnterSlugPasswordModal";
 import ToolbarButton from "@/components/ui/toolbarButton";
 import ButtonDeletePassword from "@/components/ui/buttonDeletePassword";
+import ButtonRansomSlug from "@/components/ui/buttonRansomSlug";
 
 let ws: WebSocket | null = null;
+
+type PasswordState = "unknown" | "has-password" | "no-password";
 
 export default function SlugPage() {
   const params = useParams();
@@ -21,10 +25,16 @@ export default function SlugPage() {
   const { getSlugToken, hasSlugToken, isAuthenticated } = useAuth();
 
   const [connected, setConnected] = useState(false);
-  const [showDefinePasswordModal, setShowDefinePasswordModal] = useState(false);
-  const [showEnterPasswordModal, setShowEnterPasswordModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [hasPassword, setHasPassword] = useState(false);
+
+  const [passwordState, setPasswordState] =
+    useState<PasswordState>("unknown");
+
+  const [showDefinePasswordModal, setShowDefinePasswordModal] =
+    useState(false);
+
+  const [showEnterPasswordModal, setShowEnterPasswordModal] =
+    useState(false);
 
   const isRemoteUpdate = useRef(false);
 
@@ -46,12 +56,45 @@ export default function SlugPage() {
     },
   });
 
+  /* =====================
+     CHECK PASSWORD (API)
+  ===================== */
+
   useEffect(() => {
-    fetch(`http://localhost:5001/slug/${slug}/has-password`)
-      .then((res) => res.json())
-      .then((data) => setHasPassword(data.hasPassword))
-      .catch(() => setHasPassword(false));
+    let cancelled = false;
+
+    async function checkPassword() {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/slug/${slug}/has-password`,
+        );
+
+        if (!res.ok) throw new Error();
+
+        const data = await res.json();
+
+        if (!cancelled) {
+          setPasswordState(
+            data.hasPassword ? "has-password" : "no-password",
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setPasswordState("unknown");
+        }
+      }
+    }
+
+    checkPassword();
+
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
+
+  /* =====================
+     WEBSOCKET
+  ===================== */
 
   useEffect(() => {
     if (!editor) return;
@@ -87,7 +130,11 @@ export default function SlugPage() {
 
     ws.onclose = () => {
       setConnected(false);
-      if (!hasSlugToken(slug)) {
+
+      if (
+        passwordState === "has-password" &&
+        !hasSlugToken(slug)
+      ) {
         setShowEnterPasswordModal(true);
       }
     };
@@ -96,17 +143,14 @@ export default function SlugPage() {
       ws?.close();
       ws = null;
     };
-  }, [editor, slug, getSlugToken, hasSlugToken]);
+  }, [editor, slug, passwordState, getSlugToken, hasSlugToken]);
 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
-
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      alert("Não foi possível copiar o link");
-    }
+    } catch {}
   }
 
   if (!editor) return null;
@@ -116,9 +160,12 @@ export default function SlugPage() {
       <div className="bg-white shadow-lg rounded-xl w-full flex flex-col">
         {/* HEADER */}
         <div className="p-3 border-b flex justify-between items-center">
-          <span className="text-sm text-gray-500">
-            Sala: {slug} {connected ? "🟢" : "🔴"}
-          </span>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500">
+              Room: {slug} {connected ? "🟢 Connected" : "🔴 Disconnected"}
+            </div>
+            <ButtonRansomSlug />
+          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -126,10 +173,10 @@ export default function SlugPage() {
               className="px-3 py-1 text-sm rounded border bg-white hover:bg-gray-100"
               type="button"
             >
-              {copied ? "Link copiado!" : "Copiar link"}
+              {copied ? "Link copied!" : "Copy link"}
             </button>
 
-            {isAuthenticated && hasPassword && (
+            {isAuthenticated && passwordState === "has-password" && (
               <ButtonDeletePassword slug={slug} />
             )}
 
@@ -141,6 +188,7 @@ export default function SlugPage() {
           </div>
         </div>
 
+        {/* TOOLBAR */}
         <div className="flex flex-wrap gap-1 border-b p-2 bg-gray-50">
           <ToolbarButton
             active={editor.isActive("bold")}
@@ -171,11 +219,13 @@ export default function SlugPage() {
           </ToolbarButton>
         </div>
 
+        {/* EDITOR */}
         <div className="flex-1 p-4 overflow-auto">
           <EditorContent editor={editor} />
         </div>
       </div>
 
+      {/* ENTER PASSWORD */}
       {showEnterPasswordModal && (
         <EnterSlugPasswordModal
           slug={slug}
@@ -183,6 +233,7 @@ export default function SlugPage() {
         />
       )}
 
+      {/* DEFINE PASSWORD */}
       {showDefinePasswordModal && (
         <DefinePasswordModal
           slug={slug}

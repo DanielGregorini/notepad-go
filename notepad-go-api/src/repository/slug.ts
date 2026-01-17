@@ -49,9 +49,6 @@ export default class SlugRepository {
     passwordProtected: boolean,
     password?: string | null,
   ): Promise<void> {
-
-
-
     await this.collection.updateOne(
       { slug },
       {
@@ -59,16 +56,20 @@ export default class SlugRepository {
           passwordProtected,
           password: passwordProtected ? (password ?? null) : null,
           updatedAt: new Date(),
-  
         },
       },
     );
   }
 
-  async removePassword(
-    slug: string,
-  ): Promise<void> {
+  async deleteOlderThan(date: Date): Promise<number> {
+    const result = await this.collection.deleteMany({
+      updatedAt: { $lt: date },
+    });
 
+    return result.deletedCount ?? 0;
+  }
+
+  async removePassword(slug: string): Promise<void> {
     await this.collection.updateOne(
       { slug },
       {

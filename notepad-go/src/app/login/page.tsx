@@ -1,9 +1,12 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth(); // ✅ USA O CONTEXT
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +23,7 @@ export default function LoginPage() {
     setError(false);
 
     try {
-      const res = await fetch("http://localhost:5001/user/login", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -32,26 +35,20 @@ export default function LoginPage() {
 
       if (!res.ok) {
         setError(true);
-        setMessage(data.error || "Erro ao fazer login");
+        setMessage(data.error || "Login failed");
         setLoading(false);
         return;
       }
 
-      // salva token
-      localStorage.setItem("token", data.token);
+      // ✅ SETA NO CONTEXT (E NO LOCALSTORAGE INTERNAMENTE)
+      login(data.token, data.user);
 
-      // salva usuário (sem senha)
-      localStorage.setItem("user", JSON.stringify(data.user));
+      setMessage("Login successful");
 
-      setError(false);
-      setMessage("Login realizado com sucesso");
-
-      setTimeout(() => {
-        router.push("/");
-      }, 1000);
+      router.push("/"); // ✅ Header atualiza automaticamente
     } catch {
       setError(true);
-      setMessage("Erro de conexão com o servidor");
+      setMessage("Server connection error");
     } finally {
       setLoading(false);
     }
@@ -88,7 +85,7 @@ export default function LoginPage() {
 
         <input
           type="password"
-          placeholder="Senha"
+          placeholder="Password"
           className="w-full border rounded px-3 py-2"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -100,7 +97,7 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full bg-black text-white py-2 rounded hover:bg-gray-800 disabled:opacity-50"
         >
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </div>

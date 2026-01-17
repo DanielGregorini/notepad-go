@@ -12,7 +12,7 @@ export default function ButtonDeletePassword({ slug }: Props) {
 
   async function handleDelete() {
     const ok = confirm(
-      "Tem certeza que deseja remover a senha desta sala?"
+      "Do you really want to remove the password from this room?",
     );
     if (!ok) return;
 
@@ -20,7 +20,7 @@ export default function ButtonDeletePassword({ slug }: Props) {
 
     try {
       const res = await fetch(
-        `http://localhost:5001/slug/${slug}/password`,
+        `${process.env.NEXT_PUBLIC_API_URL}/slug/${slug}/password`,
         {
           method: "DELETE",
           headers: {
@@ -31,10 +31,9 @@ export default function ButtonDeletePassword({ slug }: Props) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Erro ao remover senha");
+        throw new Error(data.error || "Error removing password");
       }
 
-      // 🔄 recarrega para atualizar estado
       window.location.reload();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -51,7 +50,7 @@ export default function ButtonDeletePassword({ slug }: Props) {
       className="px-3 py-1 text-sm rounded border border-red-500 text-red-600 hover:bg-red-50 disabled:opacity-50"
       type="button"
     >
-      {loading ? "Removendo..." : "Remover senha"}
+      {loading ? "Removing..." : "Remove password"}
     </button>
   );
 }

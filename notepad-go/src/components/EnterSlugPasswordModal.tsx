@@ -17,7 +17,7 @@ export default function EnterSlugPasswordModal({ slug, onSuccess }: Props) {
 
   async function handleSubmit() {
     if (!password) {
-      setError("Senha obrigatória");
+      setError("Password required");
       return;
     }
 
@@ -25,7 +25,7 @@ export default function EnterSlugPasswordModal({ slug, onSuccess }: Props) {
     setError(null);
 
     const res = await fetch(
-      `http://localhost:5001/slug/${slug}/auth`,
+      `${process.env.NEXT_PUBLIC_API_URL}/slug/${slug}/auth`,
       {
         method: "POST",
         headers: {
@@ -54,7 +54,7 @@ export default function EnterSlugPasswordModal({ slug, onSuccess }: Props) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
       <div className="bg-white p-6 rounded w-80">
-        <h2 className="font-semibold mb-4">Senha do slug</h2>
+        <h2 className="font-semibold mb-4">Slug password</h2>
 
         <input
           type="password"
@@ -71,7 +71,7 @@ export default function EnterSlugPasswordModal({ slug, onSuccess }: Props) {
           disabled={loading}
           className="bg-black text-white px-3 py-1 rounded w-full"
         >
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? "Loading..." : "Enter"}
         </button>
       </div>
     </div>

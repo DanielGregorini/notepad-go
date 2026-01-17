@@ -3,6 +3,8 @@ import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import cors from "cors";
 import "dotenv/config";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./docs/swagger";
 
 import { connectMongo } from "./db/monge";
 import RoomSyncJob from "./jobs/roomSyncJob";
@@ -12,9 +14,11 @@ import UserRepository from "./repository/user";
 
 import SlugJwt from "./auth/slugService";
 import UserJwt from "./auth/userService";
-import SlugRoutes from "./routes/slug";
 
+import SlugRoutes from "./routes/slug";
 import UserRoutes from "./routes/user";
+
+import OldRoomsDeleteJob from "./jobs/oldRoomsDelete";
 
 import type {
   ClientMessage,
@@ -22,7 +26,15 @@ import type {
   RoomContents,
 } from "./model/roomTypes";
 
-const TIME_SYNC_ROOM_S = process.env.TIME_SYNC_ROOM_S ? parseInt(process.env.TIME_SYNC_ROOM_S) * 1000 : 30000;
+const TIME_SYNC_ROOM_S = process.env.TIME_SYNC_ROOM_S
+  ? parseInt(process.env.TIME_SYNC_ROOM_S) * 1000
+  : 30000;
+
+const TIME_REMOVE_ROOM_D = process.env.TIME_REMOVE_ROOM_D
+  ? parseInt(process.env.TIME_REMOVE_ROOM_D)
+  : 7;
+
+
 
 async function bootstrap() {
   // -------------------- DB --------------------
@@ -184,6 +196,13 @@ async function bootstrap() {
     console.log("====================");
   }
 
+  const oldRoomsDeleteJob = new OldRoomsDeleteJob(
+    slugRepository,
+    60 * 60 * 1000 * 24 * TIME_REMOVE_ROOM_D,
+  );
+
+  oldRoomsDeleteJob.start();
+
   // -------------------- JOB --------------------
   const roomSyncJob = new RoomSyncJob(roomsContent, TIME_SYNC_ROOM_S);
   roomSyncJob.start();
@@ -192,12 +211,19 @@ async function bootstrap() {
 
   app.use("/user", UserRoutes(userRepository, slugRepository));
 
-  // -------------------- SERVER --------------------
-  server.listen(5001, () => {
-    console.log("HTTP: http://localhost:5001");
-    console.log("WS:   ws://localhost:5001/socket");
-    console.log("\n");
-  });
+  //docs 
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+    // -------------------- SERVER --------------------
+    server.listen(5001, () => {
+      console.log("HTTP: http://localhost:5001");
+      console.log("WS:   ws://localhost:5001/socket");
+      console.log("\n");
+      console.log("Docs: http://localhost:5001/docs/");
+      //http://localhost:5001/docs/
+      console.log("\n");
+    });
+
 }
 
 bootstrap().catch((err) => {

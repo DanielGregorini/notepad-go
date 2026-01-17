@@ -31,7 +31,7 @@ export default function PasswordModal({ slug, onClose }: Props) {
     setLoading(true);
     setError(null);
 
-    const res = await fetch(`http://localhost:5001/user/${slug}/password`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/${slug}/password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -57,7 +57,7 @@ export default function PasswordModal({ slug, onClose }: Props) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
       <div className="bg-white rounded-lg p-6 w-80">
-        <h2 className="font-semibold mb-4">Definir senha do slug</h2>
+        <h2 className="font-semibold mb-4">Define slug password</h2>
 
         <input
           type="password"
@@ -79,14 +79,14 @@ export default function PasswordModal({ slug, onClose }: Props) {
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="text-sm">
-            Cancelar
+            Cancel
           </button>
           <button
             disabled={loading}
             onClick={handleSubmit}
             className="bg-black text-white px-3 py-1 rounded text-sm"
           >
-            {loading ? "Salvando..." : "Salvar"}
+            {loading ? "Saving..." : "Save"}
           </button>
         </div>
       </div>

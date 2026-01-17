@@ -29,7 +29,7 @@ export default function HeaderAuth() {
           href="/register"
           className="px-3 py-1 text-sm rounded bg-black text-white hover:bg-gray-800"
         >
-          Registrar
+          Register
         </Link>
       </div>
     );
@@ -51,14 +51,14 @@ export default function HeaderAuth() {
             onClick={() => router.push("/user")}
             className="w-full text-left px-4 py-3 hover:bg-gray-100"
           >
-            Meu perfil
+            My profile
           </button>
 
           <button
             onClick={handleLogout}
             className="w-full text-left px-4 py-3 text-red-600 hover:bg-gray-100"
           >
-            Sair
+            Logout
           </button>
         </div>
       )}
